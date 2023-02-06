@@ -1,9 +1,74 @@
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/stat.h>
+
 #include "common.h"
 
-/* The main program.  Tracks the position of the X pointer, and warps it at
-   screen edges, according to the function 'map' defined in another file. */
+extern int wrap_x_, wrap_y_;
 
-int main() {
+
+int background(void)
+{
+   switch(fork())
+   {
+      case -1:
+         return -1;
+
+      // all errors are ignored
+      case 0:
+         (void) umask(0);
+         (void) setsid();
+         (void) chdir("/");
+         (void) freopen( "/dev/null", "r", stdin);
+         (void) freopen( "/dev/null", "w", stdout);
+         (void) freopen( "/dev/null", "w", stderr);
+         return 0;
+
+      default:
+         exit(0);
+   }
+}
+
+
+void usage(const char *s)
+{
+   printf(
+         "usage: %s [options]\n"
+         "\n"
+         "   OPTIONS\n"
+         "   -b .......... Automatically background process.\n"
+         "   -h .......... Display this message.\n"
+         "   -X .......... Do not wrap horizontally.\n"
+         "   -Y .......... Do not wrap vertically.\n",
+         s);
+}
+
+
+int main(int argc, char **argv)
+{
+   int bg = 0;
+   int c;
+
+   while ((c = getopt(argc, argv, "bhXY")) != -1)
+      switch (c)
+      {
+         case 'b':
+            bg = 1;
+            break;
+
+         case 'h':
+            usage(argv[0]);
+            exit(0);
+
+         case 'X':
+            wrap_x_ = 0;
+            break;
+
+         case 'Y':
+            wrap_y_ = 0;
+            break;
+      }
+
     // Initialize X and the screen edge map.
     Display *dpy = XOpenDisplay(NULL);
     Window root = DefaultRootWindow(dpy);
@@ -17,6 +82,9 @@ int main() {
        puts("XInput is not available.");
        exit(1);
     }
+
+    if (bg)
+       background();
 
     // Tell XInput to send us all RawMotion events.
     // (Normal Motion events are blocked by some windows.)
