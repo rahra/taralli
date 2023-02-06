@@ -1,3 +1,6 @@
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -49,7 +52,7 @@ int main(int argc, char **argv)
    int bg = 0;
    int c;
 
-   while ((c = getopt(argc, argv, "bhXY")) != -1)
+   while ((c = getopt(argc, argv, "bhvXY")) != -1)
       switch (c)
       {
          case 'b':
@@ -58,6 +61,13 @@ int main(int argc, char **argv)
 
          case 'h':
             usage(argv[0]);
+            exit(0);
+
+         case 'v':
+            printf(
+                  "%s by Bernhard R. Fischer <bf@abenteuerland.at>.\n"
+                  "Codebase originally written by Keegan McAllister, Autotools added by Josh Max.\n",
+                  PACKAGE_STRING);
             exit(0);
 
          case 'X':

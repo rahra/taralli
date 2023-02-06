@@ -7,6 +7,7 @@ AC_INIT([taralli], [[1.1]], [bf@abenteuerland.at])
 AC_CONFIG_FILES([Makefile])
 AC_SUBST([CFLAGS], [["$CFLAGS -Wall -Wextra -O2"]])
 AM_INIT_AUTOMAKE([-Wall -Werror])
+AC_CONFIG_HEADERS([config.h])
 
 # Checks for programs.
 AC_PROG_CC
