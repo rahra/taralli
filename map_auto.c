@@ -7,20 +7,13 @@
 
 #include "common.h"
 
-#define MAX_MONITORS 8
-
-int wrap_x_ = 1;
-int wrap_y_ = 1;
-
-
-typedef struct mon_info
-{
-   int x, y, w, h;
-} mon_info_t;
-
 
 static int mi_cnt_ = 0;
 static mon_info_t mi_[MAX_MONITORS];
+
+
+int wrap_x_ = 1;
+int wrap_y_ = 1;
 
 
 static inline int min(int a, int b)
@@ -114,24 +107,39 @@ void map_init(Display *dpy)
 }
 
 
-void map(int *x, int *y)
+int map(int *x, int *y)
 {
    int x0 = *x;
+   int mod = 0;
 
    if (wrap_x_)
    {
       if (x0 == get_minx_at_y(*y))
+      {
          *x = get_maxx_at_y(*y);
+         mod++;
+      }
       else if (x0 == get_maxx_at_y(*y))
+      {
          *x = get_minx_at_y(*y);
+         mod++;
+      }
    }
 
    if (wrap_y_)
    {
       if (*y == get_miny_at_x(x0))
+      {
          *y = get_maxy_at_x(x0);
+         mod++;
+      }
       else if (*y == get_maxy_at_x(x0))
+      {
          *y = get_miny_at_x(x0);
+         mod++;
+      }
    }
+
+   return mod;
 }
 
