@@ -3,5 +3,5 @@ AUTOMAKE_OPTIONS = foreign
 
 # Binary locations
 bin_PROGRAMS = taralli
-taralli_SOURCES = main.c common.h map_$(map_type).h map_$(map_type).c
-
+taralli_SOURCES = main.c map_auto.c
+noinst_HEADERS = common.h
