@@ -58,6 +58,8 @@ static int get_min_at_pos(const mon_info_t *mi, int mi_cnt, int p0, int dim)
 
 static int get_monitor_info(Display *dpy, mon_info_t *mi, int mi_cnt)
 {
+   XRROutputInfo* out_info;
+   XRRCrtcInfo* crt_info;
    int cnt = 0;
 
    Window window = DefaultRootWindow(dpy);
@@ -65,22 +67,25 @@ static int get_monitor_info(Display *dpy, mon_info_t *mi, int mi_cnt)
 
    for (int i = 0; i < screenr->noutput && cnt < mi_cnt; i++)
    {
-      XRROutputInfo* out_info = XRRGetOutputInfo(dpy, screenr, screenr->outputs[i]);
-      if (out_info != NULL && out_info->connection == RR_Connected)
+      if ((out_info = XRRGetOutputInfo(dpy, screenr, screenr->outputs[i])) == NULL)
+         continue;
+
+      if (out_info->connection == RR_Connected)
       {
-         XRRCrtcInfo* crt_info = XRRGetCrtcInfo(dpy, screenr, out_info->crtc);
-         mi[cnt].me[DIMX].min = crt_info->x;
-         mi[cnt].me[DIMX].max = crt_info->x + crt_info->width;
-         mi[cnt].me[DIMY].min = crt_info->y;
-         mi[cnt].me[DIMY].max = crt_info->y + crt_info->height;
-         cnt++;
-         XRRFreeCrtcInfo(crt_info);
+         if ((crt_info = XRRGetCrtcInfo(dpy, screenr, out_info->crtc)) != NULL)
+         {
+            mi[cnt].me[DIMX].min = crt_info->x;
+            mi[cnt].me[DIMX].max = crt_info->x + crt_info->width;
+            mi[cnt].me[DIMY].min = crt_info->y;
+            mi[cnt].me[DIMY].max = crt_info->y + crt_info->height;
+            cnt++;
+            XRRFreeCrtcInfo(crt_info);
+         }
       }
       XRRFreeOutputInfo(out_info);
    }
 
    XRRFreeScreenResources(screenr);
-
    return cnt;
 }
 
@@ -96,19 +101,6 @@ static void get_max_extents(const mon_info_t *mi, int mi_cnt, mon_extents_t *me,
 }
 
 
-static void print_max_extents(const mon_extents_t me[2])
-{
-   printf("%d/%d-%d/%d\n", me[DIMX].min, me[DIMY].min, me[DIMX].max, me[DIMY].max);
-}
-
-
-static void print_monitors(const mon_info_t *mi, int cnt)
-{
-   for (int i = 0; i < cnt; i++)
-      print_max_extents(mi[i].me);
-}
-
-
 int map_init(Display *dpy)
 {
    mon_info_t mi[MAX_MONITORS];
@@ -119,7 +111,6 @@ int map_init(Display *dpy)
       return -1;
 
    cnt = get_monitor_info(dpy, mi, MAX_MONITORS);
-   //print_monitors(mi, cnt);
 
    for (int i = 0; i < 2; i++)
    {
@@ -127,14 +118,13 @@ int map_init(Display *dpy)
       if ((me_[i] = realloc(me_[i], sizeof(*me_[i]) * ext_[i].max)) == NULL)
          return -1;
    }
-   //print_max_extents(ext_);
 
    for (int i = 0; i <= 1; i++)
    {
       for (int j = ext_[i].min; j < ext_[i].max; j++)
       {
-         me_[i][j].min = get_min_at_pos(mi, cnt, j, i ^ 1);
-         me_[i][j].max = get_max_at_pos(mi, cnt, j, i ^ 1) - 1;
+         me_[i][j].min = get_min_at_pos(mi, cnt, j, PDIM(i));
+         me_[i][j].max = get_max_at_pos(mi, cnt, j, PDIM(i)) - 1;
       }
    }
 
