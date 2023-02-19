@@ -1,0 +1,10 @@
+[Unit]
+Description=Taralli Mouse Cursor Wrapper
+PartOf=graphical-session.target
+[Service]
+ExecStart=/usr/local/bin/taralli
+ExecReload=/bin/kill -HUP $MAINPID
+Slice=session.slice
+Restart=on-failure
+[Install]
+WantedBy=default.target
