@@ -44,6 +44,7 @@ void usage(const char *s)
          "   OPTIONS\n"
          "   -b .......... Automatically background process.\n"
          "   -h .......... Display this message.\n"
+         "   -v .......... Output version and exit.\n"
          "   -X .......... Do not wrap horizontally.\n"
          "   -Y .......... Do not wrap vertically.\n",
          s);
