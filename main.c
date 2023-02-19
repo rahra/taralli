@@ -3,11 +3,14 @@
 #endif
 #include <stdio.h>
 #include <unistd.h>
+#include <signal.h>
 #include <sys/stat.h>
 
 #include "common.h"
 
 extern int wrap_x_, wrap_y_;
+
+static volatile sig_atomic_t sig_ = 0;
 
 
 int background(void)
@@ -47,6 +50,23 @@ void usage(const char *s)
 }
 
 
+void sighup(int status)
+{
+   sig_ = status;
+}
+
+
+void install_sighandler(void)
+{
+   struct sigaction sa;
+
+   memset(&sa, 0, sizeof(sa));
+   sa.sa_handler = sighup;
+   if (sigaction(SIGHUP, &sa, NULL) == -1)
+      perror("sigaction() failed"), exit(1);
+}
+
+
 int main(int argc, char **argv)
 {
    int bg = 0;
@@ -79,10 +99,15 @@ int main(int argc, char **argv)
             break;
       }
 
+   install_sighandler();
+
    // Initialize X and the screen edge map.
    Display *dpy = XOpenDisplay(NULL);
+   if (dpy == NULL)
+      fprintf(stderr, "*** Cannot open display!\n"), exit(1);
+
    Window root = DefaultRootWindow(dpy);
-   map_init(dpy);
+   //map_init(dpy);
 
    // Get the XInput opcode.
    // (Variables starting with an underscore are not used.)
@@ -109,22 +134,32 @@ int main(int argc, char **argv)
    XISelectEvents(dpy, root, &mask, 1);
 
    // Receive X events forever.
-   while (1) {
+   for (sig_ = 1;;)
+   {
+      if (sig_)
+      {
+         sig_ = 0;
+         map_init(dpy);
+      }
+
       XEvent event;
       XNextEvent(dpy, &event);
       if ((event.xcookie.type == GenericEvent) &&
          (event.xcookie.extension == xi_opcode) &&
-         XGetEventData(dpy, &event.xcookie)) {
+         XGetEventData(dpy, &event.xcookie))
+      {
 
          // On each RawMotion event, retrieve the pointer location
          // and move the pointer if necessary.
-         if (event.xcookie.evtype == XI_RawMotion) {
+         if (event.xcookie.evtype == XI_RawMotion)
+         {
             int x, y;
             int _win_x, _win_y;
             Window _root, _child;
             unsigned int _mask;
             if (XQueryPointer(dpy, root, &_root, &_child, &x, &y,
-                          &_win_x, &_win_y, &_mask)){
+                          &_win_x, &_win_y, &_mask))
+            {
                if (map(&x, &y))
                   XWarpPointer(dpy, None, root, 0, 0, 0, 0, x, y);
             }

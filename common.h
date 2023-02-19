@@ -9,15 +9,24 @@
 #define MAX_MONITORS 8
 
 
+
+typedef struct mon_extents
+{
+   int min, max;
+} mon_extents_t;
+
+
 typedef struct mon_info
 {
-   int x, y, w, h;
+   mon_extents_t me[2];
 } mon_info_t;
 
 
-void map_init(Display *dpy);
+int map_init(Display *dpy);
 int map(int *x, int *y);
 
+
+enum {DIMX, DIMY};
 
 extern int wrap_x_;
 extern int wrap_y_;

@@ -8,12 +8,16 @@
 #include "common.h"
 
 
-static int mi_cnt_ = 0;
-static mon_info_t mi_[MAX_MONITORS];
+#define PDIM(x) ((x) ^ 1)
 
 
 int wrap_x_ = 1;
 int wrap_y_ = 1;
+
+//! maximum rectangular extents of display
+static mon_extents_t ext_[2];
+//! lookup tables for each column/row
+static mon_extents_t *me_[2] = {NULL, NULL};
 
 
 static inline int min(int a, int b)
@@ -28,82 +32,113 @@ static inline int max(int a, int b)
 }
 
 
-static int get_maxx_at_y(int y)
+static int get_max_at_pos(const mon_info_t *mi, int mi_cnt, int p0, int dim)
 {
-   int x = 0;
+   int p = 0;
 
-   for (int i = 0; i < mi_cnt_; i++)
-      if (y >= mi_[i].y && y < mi_[i].y + mi_[i].h)
-         x = max(x, mi_[i].x + mi_[i].w);
+   for (int i = 0; i < mi_cnt; i++)
+      if (p0 >= mi[i].me[PDIM(dim)].min && p0 < mi[i].me[PDIM(dim)].max)
+         p = max(p, mi[i].me[dim].max);
 
-   return x - 1;
+   return p;
 }
 
 
-static int get_minx_at_y(int y)
+static int get_min_at_pos(const mon_info_t *mi, int mi_cnt, int p0, int dim)
 {
-   int x = INT_MAX;
+   int p = INT_MAX;
 
-   for (int i = 0; i < mi_cnt_; i++)
-      if (y >= mi_[i].y && y < mi_[i].y + mi_[i].h)
-         x = min(x, mi_[i].x);
+   for (int i = 0; i < mi_cnt; i++)
+      if (p0 >= mi[i].me[PDIM(dim)].min && p0 < mi[i].me[PDIM(dim)].max)
+         p = min(p, mi[i].me[dim].min);
 
-   return x;
+   return p;
 }
 
 
-static int get_maxy_at_x(int x)
+static int get_monitor_info(Display *dpy, mon_info_t *mi, int mi_cnt)
 {
-   int y = 0;
-
-   for (int i = 0; i < mi_cnt_; i++)
-      if (x >= mi_[i].x && x < mi_[i].x + mi_[i].w)
-         y = max(y, mi_[i].y + mi_[i].h);
-
-   return y - 1;
-}
-
-
-static int get_miny_at_x(int x)
-{
-   int y = INT_MAX;
-
-   for (int i = 0; i < mi_cnt_; i++)
-      if (x >= mi_[i].x && x < mi_[i].x + mi_[i].w)
-         y = min(y, mi_[i].y);
-
-   return y;
-}
-
-
-void map_init(Display *dpy)
-{
-   memset(mi_, 0, sizeof(mi_)); 
-
-   // safety check
-   if (dpy == NULL)
-      return;
+   int cnt = 0;
 
    Window window = DefaultRootWindow(dpy);
    XRRScreenResources *screenr = XRRGetScreenResources(dpy, window);
 
-   for (int i = 0; i < screenr->noutput && mi_cnt_ < MAX_MONITORS; i++)
+   for (int i = 0; i < screenr->noutput && cnt < mi_cnt; i++)
    {
       XRROutputInfo* out_info = XRRGetOutputInfo(dpy, screenr, screenr->outputs[i]);
       if (out_info != NULL && out_info->connection == RR_Connected)
       {
          XRRCrtcInfo* crt_info = XRRGetCrtcInfo(dpy, screenr, out_info->crtc);
-         mi_[mi_cnt_].x = crt_info->x;
-         mi_[mi_cnt_].y = crt_info->y;
-         mi_[mi_cnt_].w = crt_info->width;
-         mi_[mi_cnt_].h = crt_info->height;
-         mi_cnt_++;
+         mi[cnt].me[DIMX].min = crt_info->x;
+         mi[cnt].me[DIMX].max = crt_info->x + crt_info->width;
+         mi[cnt].me[DIMY].min = crt_info->y;
+         mi[cnt].me[DIMY].max = crt_info->y + crt_info->height;
+         cnt++;
          XRRFreeCrtcInfo(crt_info);
       }
       XRRFreeOutputInfo(out_info);
    }
 
    XRRFreeScreenResources(screenr);
+
+   return cnt;
+}
+
+
+static void get_max_extents(const mon_info_t *mi, int mi_cnt, mon_extents_t *me, int dim)
+{
+   *me = mi[0].me[dim];
+   for (int i = 1; i < mi_cnt; i++)
+   {
+      me->min = min(me->min, mi[i].me[dim].min);
+      me->max = max(me->max, mi[i].me[dim].max);
+   }
+}
+
+
+static void print_max_extents(const mon_extents_t me[2])
+{
+   printf("%d/%d-%d/%d\n", me[DIMX].min, me[DIMY].min, me[DIMX].max, me[DIMY].max);
+}
+
+
+static void print_monitors(const mon_info_t *mi, int cnt)
+{
+   for (int i = 0; i < cnt; i++)
+      print_max_extents(mi[i].me);
+}
+
+
+int map_init(Display *dpy)
+{
+   mon_info_t mi[MAX_MONITORS];
+   int cnt;
+
+   // safety check
+   if (dpy == NULL)
+      return -1;
+
+   cnt = get_monitor_info(dpy, mi, MAX_MONITORS);
+   //print_monitors(mi, cnt);
+
+   for (int i = 0; i < 2; i++)
+   {
+      get_max_extents(mi, cnt, &ext_[i], i);
+      if ((me_[i] = realloc(me_[i], sizeof(*me_[i]) * ext_[i].max)) == NULL)
+         return -1;
+   }
+   //print_max_extents(ext_);
+
+   for (int i = 0; i <= 1; i++)
+   {
+      for (int j = ext_[i].min; j < ext_[i].max; j++)
+      {
+         me_[i][j].min = get_min_at_pos(mi, cnt, j, i ^ 1);
+         me_[i][j].max = get_max_at_pos(mi, cnt, j, i ^ 1) - 1;
+      }
+   }
+
+   return 0;
 }
 
 
@@ -114,28 +149,27 @@ int map(int *x, int *y)
 
    if (wrap_x_)
    {
-      if (x0 == get_minx_at_y(*y))
+      if (x0 == me_[DIMY][*y].min)
       {
-         *x = get_maxx_at_y(*y);
+         *x = me_[DIMY][*y].max;
          mod++;
       }
-      else if (x0 == get_maxx_at_y(*y))
+      else if (x0 == me_[DIMY][*y].max)
       {
-         *x = get_minx_at_y(*y);
+         *x = me_[DIMY][*y].min;
          mod++;
       }
    }
-
    if (wrap_y_)
    {
-      if (*y == get_miny_at_x(x0))
+      if (*y == me_[DIMX][x0].min)
       {
-         *y = get_maxy_at_x(x0);
+         *y = me_[DIMX][x0].max;
          mod++;
       }
-      else if (*y == get_maxy_at_x(x0))
+      else if (*y == me_[DIMX][x0].max)
       {
-         *y = get_miny_at_x(x0);
+         *y = me_[DIMX][x0].min;
          mod++;
       }
    }
