@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([taralli], [[2.0]], [bf@abenteuerland.at])
+AC_INIT([taralli], [[2.0.1]], [bf@abenteuerland.at])
 #AC_CONFIG_SRCDIR([main.c])
 AC_CONFIG_FILES([Makefile])
 AC_SUBST([CFLAGS], [["$CFLAGS -Wall -Wextra -O2"]])
