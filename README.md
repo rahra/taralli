@@ -8,7 +8,7 @@ not have to travel large distances with the mouse if you wanna get from the
 right-most to the left-most screen.
 
 the codebase was originally written by Keegan McAllister, autotools added by
-[[https://github.com/joshumax/taralli]](Josh Max). The latter is the base for
+[Josh Max](https://github.com/joshumax/taralli). The latter is the base for
 This tool but is enhnced to autodetect a multiple screen setup. So there's no
 need to do some manual configuration.
 
@@ -20,9 +20,9 @@ To build the tool you need to have the following dev libraries installed:
 sudo apt install libx11-dev libxi-dev libxrandr-dev
 ```
 
-Download the latest tarball from the
-[https://github.com/rahra/taralli-ng/releases](releases page) and unpack it.
-Then change into this folder and run the following commands.
+Download the latest tarball from the [releases
+page](https://github.com/rahra/taralli-ng/releases) and unpack it. Then change
+into this folder and run the following commands.
 
 ```shell
 ./configure
